@@ -1,0 +1,13 @@
+.git
+.vercel
+.env
+.env.*
+!.env.example
+bootstrap/cache/*.php
+database/database.sqlite
+node_modules
+storage/framework/views/*.php
+public/build
+storage/logs/*.log
+tests
+vendor

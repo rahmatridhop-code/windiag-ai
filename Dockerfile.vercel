@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# 1. Build asset frontend (Vite + Tailwind) dengan Node.
+# ---------------------------------------------------------------------------
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json ./
+RUN npm install --no-audit --no-fund
+COPY . .
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# 2. Base image FrankenPHP = PHP + Caddy dalam satu binary.
+#    PHP 8.4 kompatibel dengan Laravel 12.
+# ---------------------------------------------------------------------------
+FROM dunglas/frankenphp:1-php8.4-bookworm AS base
+
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && install-php-extensions intl zip pdo_mysql pdo_pgsql
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# 3. Install dependency PHP produksi (tanpa dev).
+# ---------------------------------------------------------------------------
+FROM base AS dependencies
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --optimize-autoloader \
+    --prefer-dist
+
+# Salin hanya sumber aplikasi. Jangan salin vendor/node_modules lokal karena
+# dapat menimpa vendor hasil `composer install --no-dev` di atas.
+COPY app ./app
+COPY artisan ./artisan
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY public ./public
+COPY resources ./resources
+COPY routes ./routes
+COPY storage ./storage
+
+COPY --from=assets /app/public/build /app/public/build
+
+RUN rm -f bootstrap/cache/*.php \
+    && mkdir -p \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        bootstrap/cache \
+    && composer dump-autoload --no-dev --classmap-authoritative
+
+# ---------------------------------------------------------------------------
+# 4. Image final yang dijalankan sebagai Vercel Function (container).
+# ---------------------------------------------------------------------------
+FROM base AS runtime
+
+COPY --from=dependencies --chown=www-data:www-data /app /app
+COPY --chown=www-data:www-data Caddyfile /etc/frankenphp/Caddyfile
+
+RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
+    && chown -R www-data:www-data /config/caddy /data/caddy
+
+# Nilai default. Rahasia (APP_KEY, DB_URL, dll.) diisi lewat Environment
+# Variables di Vercel dan akan menimpa nilai ini saat runtime.
+ENV PORT=80 \
+    APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    CACHE_STORE=database \
+    SESSION_DRIVER=database \
+    QUEUE_CONNECTION=sync \
+    FILESYSTEM_DISK=local
+
+USER www-data
+
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]

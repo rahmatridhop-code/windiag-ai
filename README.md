@@ -46,3 +46,5 @@ Panduan lengkap ada di [`DEPLOY.md`](DEPLOY.md).
 
 Setiap push ke branch `main` akan otomatis di-build dan di-deploy ke Vercel.
 Environment variable disimpan di Vercel Project Settings, bukan di repository.
+
+Repository GitHub: <https://github.com/rahmatridhop-code/windiag-ai>

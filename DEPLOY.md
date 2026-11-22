@@ -182,6 +182,28 @@ npx vercel deploy --prod
 
 ---
 
+## 8. Git + auto-deploy (sudah aktif)
+
+- Repository: <https://github.com/rahmatridhop-code/windiag-ai> (public)
+- Branch produksi: `main`
+- Setiap `git push origin main` otomatis memicu deployment production di Vercel.
+- Vercel GitHub App sudah terhubung ke project `ridho-z/windiag-ai`.
+- Environment variable tetap disimpan di Vercel, tidak ikut ke repository.
+
+```powershell
+git add .
+git commit -m "Deskripsi perubahan"
+git push origin main
+```
+
+Aliases yang aktif:
+
+- <https://windiag-ai.vercel.app>
+- <https://windiag-ai-ridho-z.vercel.app>
+- <https://windiag-ai-git-main-ridho-z.vercel.app>
+
+---
+
 ## Catatan operasional
 
 - File system container tidak awet. Jangan menyimpan upload ke `storage/app/public`;
